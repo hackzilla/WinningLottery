@@ -2,14 +2,62 @@
 
 namespace App\Service;
 
+use App\Command\GenerateCommand;
+
 class LotteryNumbers
 {
-    public function generate(int $totalBalls, bool $shuffle): array
+    public function __construct(
+        private NationalLotteryResults $lotteryResults,
+    )
+    {
+    }
+
+    public function generate(int $totalBalls, string $order): array
     {
         $balls = range(1, $totalBalls);
 
-        if ($shuffle) {
-            shuffle($balls);
+        switch ($order) {
+            case GenerateCommand::ORDER_HIGH_LOW:
+                rsort($balls); // Sorts the balls from highest to lowest
+                break;
+            case GenerateCommand::ORDER_LOW_HIGH:
+                sort($balls); // Sorts the balls from lowest to highest
+                break;
+            case GenerateCommand::ORDER_LEAST_PICKED:
+            case GenerateCommand::ORDER_MOST_PICKED:
+                $draws = $this->lotteryResults->getDraws();
+                $ballCounts = [];
+
+                foreach ($draws as $draw) {
+                    // Iterate over each ball in the draw
+                    for ($i = 1; $i <= 6; $i++) {
+                        $ballKey = "Ball $i";
+                        $ballValue = $draw[$ballKey];
+
+                        // Increment the count for the ball value
+                        if (!isset($ballCounts[$ballValue])) {
+                            $ballCounts[$ballValue] = 0;
+                        }
+
+                        $ballCounts[$ballValue]++;
+                    }
+                }
+
+                // Sort balls based on their counts
+                usort($balls, function ($ballA, $ballB) use ($order, $ballCounts) {
+                    return ($order === GenerateCommand::ORDER_LEAST_PICKED)
+                        ? $ballCounts[$ballA] <=> $ballCounts[$ballB]
+                        : $ballCounts[$ballB] <=> $ballCounts[$ballA];
+                });
+
+                break;
+            case GenerateCommand::ORDER_RANDOM:
+                shuffle($balls); // Shuffles the balls randomly
+                break;
+            case GenerateCommand::ORDER_NONE:
+            default:
+                // No specific ordering, keep the original order
+                break;
         }
 
         // These functions are only for 59 balls

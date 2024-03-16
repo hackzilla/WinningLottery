@@ -17,8 +17,27 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 )]
 class GenerateCommand extends Command
 {
+    // Define constants for the order options
+    public const ORDER_NONE = 'none';
+    public const ORDER_HIGH_LOW = 'high-low';
+    public const ORDER_LOW_HIGH = 'low-high';
+    public const ORDER_LEAST_PICKED = 'least-picked';
+    public const ORDER_MOST_PICKED = 'most-picked';
+    public const ORDER_RANDOM = 'random';
+
+    // An array of all valid order options
+    public const VALID_ORDERS = [
+        self::ORDER_NONE,
+        self::ORDER_HIGH_LOW,
+        self::ORDER_LOW_HIGH,
+        self::ORDER_LEAST_PICKED,
+        self::ORDER_MOST_PICKED,
+        self::ORDER_RANDOM,
+    ];
+
     public function __construct(
         private readonly NationalLotteryResults $lotteryResults,
+        private readonly LotteryNumbers $lotteryNumbers,
     )
     {
         parent::__construct();
@@ -27,8 +46,14 @@ class GenerateCommand extends Command
     protected function configure(): void
     {
         $this
-            ->addOption('balls', 'b', InputOption::VALUE_REQUIRED, 'Total number of balls in the draw')
-            ->addOption('shuffle', null, InputOption::VALUE_NONE, 'Randomise ball order')
+            ->addOption('balls', 'b', InputOption::VALUE_REQUIRED, 'Total number of balls in the draw', 59)
+            ->addOption(
+                'order',
+                'o',
+                InputOption::VALUE_REQUIRED,
+                'Order of balls in the draw',
+                self::ORDER_NONE
+            )
             ->addOption('result', 'r', InputOption::VALUE_NONE, 'Check tickets against the last 6 months of lottery draws')
             ->addOption('summary', 's', InputOption::VALUE_NONE, 'Summary of result of tickets against the last 6 months of lottery draws')
         ;
@@ -39,10 +64,17 @@ class GenerateCommand extends Command
         $io = new SymfonyStyle($input, $output);
 
         $totalBalls = (int) $input->getOption('balls');
-        $shuffle = $input->getOption('shuffle');
-        $lotteryService = new LotteryNumbers();
+        $order = $input->getOption('order');
 
-        $tickets = $lotteryService->generate($totalBalls, $shuffle);
+        if (!in_array($order, self::VALID_ORDERS)) {
+            $io->error(sprintf(
+                "Invalid order option. Valid options are: %s.",
+                implode(', ', self::VALID_ORDERS)
+            ));
+            return Command::FAILURE;
+        }
+
+        $tickets = $this->lotteryNumbers->generate($totalBalls, $order);
 
         $io->section('Tickets');
         $io->table([], $tickets);

@@ -1,29 +1,16 @@
 <?php
 
-namespace App\Service;
+namespace App\Service\Results;
 
 use ogrrd\CsvIterator\CsvIterator;
 use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
 
-class NationalLotteryResults
+class NationalLotteryResults extends AbstractLotteryResults
 {
-    private readonly string $results;
+    const DRAW_NAME = 'lotto';
     const DRAW_RESULTS = 'https://www.national-lottery.co.uk/results/lotto/draw-history/csv';
 
-    public function __construct(
-        ParameterBagInterface $bag,
-    )
-    {
-        $directory = $bag->get('kernel.project_dir').'/var/results/';
-
-        if (!is_dir($directory)) {
-            mkdir($directory);
-        }
-
-        $this->results = $directory. date('Y-m-d') . '.csv';
-    }
-
-    public function checkResults(array $ticket): array
+    public function getDraws(): CsvIterator
     {
         if (!file_exists($this->results)) {
             $this->downloadResults();
@@ -31,6 +18,13 @@ class NationalLotteryResults
 
         $draws = new CsvIterator($this->results, ',');
         $draws->useFirstRowAsHeader();
+
+        return $draws;
+    }
+
+    public function checkResults(array $ticket): array
+    {
+        $draws = $this->getDraws();
         $results = [];
 
         foreach ($draws as $draw) {
@@ -71,7 +65,7 @@ class NationalLotteryResults
         return $results;
     }
 
-    private function downloadResults()
+    private function downloadResults(): void
     {
         $content = file_get_contents(self::DRAW_RESULTS);
         if ($content === false) {
