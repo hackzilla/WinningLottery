@@ -3,11 +3,12 @@
 namespace App\Service;
 
 use App\Command\GenerateCommand;
+use App\Service\Results\NationalLotteryLottoResults;
 
 class LotteryNumbers
 {
     public function __construct(
-        private NationalLotteryResults $lotteryResults,
+        private readonly NationalLotteryLottoResults $lotteryResults,
     )
     {
     }
@@ -45,9 +46,12 @@ class LotteryNumbers
 
                 // Sort balls based on their counts
                 usort($balls, function ($ballA, $ballB) use ($order, $ballCounts) {
+                    $ballACount = $ballCounts[$ballA] ?? 0;
+                    $ballBCount = $ballCounts[$ballB] ?? 0;
+
                     return ($order === GenerateCommand::ORDER_LEAST_PICKED)
-                        ? $ballCounts[$ballA] <=> $ballCounts[$ballB]
-                        : $ballCounts[$ballB] <=> $ballCounts[$ballA];
+                        ? $ballACount <=> $ballBCount
+                        : $ballBCount <=> $ballACount;
                 });
 
                 break;

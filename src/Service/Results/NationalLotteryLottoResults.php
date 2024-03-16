@@ -3,11 +3,10 @@
 namespace App\Service\Results;
 
 use ogrrd\CsvIterator\CsvIterator;
-use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
 
-class NationalLotteryResults extends AbstractLotteryResults
+class NationalLotteryLottoResults extends AbstractLotteryResults
 {
-    const DRAW_NAME = 'lotto';
+    const DRAW_NAME = 'national-lottery-lotto';
     const DRAW_RESULTS = 'https://www.national-lottery.co.uk/results/lotto/draw-history/csv';
 
     public function getDraws(): CsvIterator
@@ -65,16 +64,34 @@ class NationalLotteryResults extends AbstractLotteryResults
         return $results;
     }
 
-    private function downloadResults(): void
+    /**
+     * @inheritDoc
+     */
+    public function prizeValue($ballMatches, $bonus): int
     {
-        $content = file_get_contents(self::DRAW_RESULTS);
-        if ($content === false) {
-            throw new \Exception("Failed to download the file.");
+        switch ($ballMatches) {
+            case 6:
+                return 15_000_000;
+            case 5:
+                if ($bonus) {
+                    return 1_000_000;
+                }
+
+                return 1_750;
+            case 4:
+                return 140;
+            case 3:
+                return 30;
+            case 2:
+                // Free ticket, return cost of entry
+                return self::ticketCost();
         }
 
-        $written = file_put_contents($this->results, $content);
-        if ($written === false) {
-            throw new \Exception("Failed to write the file to disk.");
-        }
+        return 0;
+    }
+
+    public function ticketCost(): int
+    {
+        return 2;
     }
 }

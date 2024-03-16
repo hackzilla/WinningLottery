@@ -3,7 +3,7 @@
 namespace App\Command;
 
 use App\Service\LotteryNumbers;
-use App\Service\NationalLotteryResults;
+use App\Service\Results\NationalLotteryLottoResults;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -13,7 +13,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 
 #[AsCommand(
     name: 'app:generate',
-    description: 'Add a short description for your command',
+    description: 'Generate lottery numbers',
 )]
 class GenerateCommand extends Command
 {
@@ -35,12 +35,15 @@ class GenerateCommand extends Command
         self::ORDER_RANDOM,
     ];
 
+    private LotteryNumbers $lotteryNumbers;
+
     public function __construct(
-        private readonly NationalLotteryResults $lotteryResults,
-        private readonly LotteryNumbers $lotteryNumbers,
+        private readonly NationalLotteryLottoResults $lotteryResults,
     )
     {
         parent::__construct();
+
+        $this->lotteryNumbers = new LotteryNumbers($this->lotteryResults);
     }
 
     protected function configure(): void
@@ -91,7 +94,7 @@ class GenerateCommand extends Command
             foreach ($tickets as $ticket) {
                 $results = $this->lotteryResults->checkResults($ticket);
                 foreach ($results as $date => $data) {
-                    $totalCost += 2;
+                    $totalCost += $this->lotteryResults->ticketCost();
                     $time = (new \DateTime($date . ' 00:00'))->format('U');
 
                     if ($data[0] < 2) {
@@ -104,7 +107,7 @@ class GenerateCommand extends Command
                         $prizes[$time] = [$date, 0];
                     }
 
-                    $winnings = $this->prizeValue($data[0], $data[1]);
+                    $winnings = $this->lotteryResults->prizeValue($data[0], $data[1]);
                     $totalWinnings += $winnings;
                     $prizes[$time][1] += $winnings;
                 }
@@ -127,31 +130,5 @@ class GenerateCommand extends Command
         }
 
         return Command::SUCCESS;
-    }
-
-    /**
-     * Approximate prize values
-     */
-    private function prizeValue($ballMatches, $bonus): int
-    {
-        switch ($ballMatches) {
-            case 6:
-                return 15_000_000;
-            case 5:
-                if ($bonus) {
-                    return 1_000_000;
-                }
-
-                return 1_750;
-            case 4:
-                return 140;
-            case 3:
-                return 30;
-            case 2:
-                // Free ticket, return cost of entry
-                return 2;
-        }
-
-        return 0;
     }
 }
